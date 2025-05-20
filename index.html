@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Un observatoire pour tout</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    <style>
+        .card {
+            transition: all 0.3s ease;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        }
+        .search-highlight {
+            background-color: #fef08a;
+            padding: 0 2px;
+            border-radius: 2px;
+        }
+        .announcement-pulse {
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(99, 102, 241, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); }
+        }
+        .filter-section {
+            scrollbar-width: thin;
+            scrollbar-color: #c7d2fe #f0f0f0;
+        }
+        .filter-section::-webkit-scrollbar {
+            height: 6px;
+        }
+        .filter-section::-webkit-scrollbar-track {
+            background: #f0f0f0;
+            border-radius: 10px;
+        }
+        .filter-section::-webkit-scrollbar-thumb {
+            background-color: #c7d2fe;
+            border-radius: 10px;
+        }
+        .open-source-banner {
+            background: linear-gradient(90deg, #4f46e5 0%, #7c3aed 100%);
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Open Source Banner -->
+    <div class="open-source-banner text-white py-2 px-4 text-center text-sm">
+        <div class="container mx-auto flex items-center justify-center">
+            <i class="fas fa-code-branch mr-2"></i>
+            <span>Observatory, un outil open-source</span>
+            <a href="" target="_blank" class="ml-3 px-2 py-1 bg-white bg-opacity-20 rounded hover:bg-opacity-30 transition-all">
+                <i class="fab fa-github mr-1"></i> Code source
+            </a>
+        </div>
+    </div>
+
+    <div class="container mx-auto px-4 py-8">
+        <!-- Header -->
+        <header class="mb-12 text-center">
+            <h1 class="text-4xl font-bold text-indigo-800 mb-2">Un observatoire pour tout</h1>
+            <p class="text-lg text-gray-600 max-w-3xl mx-auto">
+                Explorez les observatoires clés pour anticiper les transformations des métiers, des compétences et de la recherche.
+            </p>
+        </header>
+
+        <!-- Search and Refresh -->
+        <div class="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
+            <div class="relative w-full md:w-1/2">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <i class="fas fa-search text-gray-400"></i>
+                </div>
+                <input 
+                    type="text" 
+                    id="searchInput" 
+                    class="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" 
+                    placeholder="Rechercher par nom, catégorie ou secteur..."
+                >
+            </div>
+            <button id="refreshBtn" class="flex items-center gap-2 px-4 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors shadow-md">
+                <i class="fas fa-sync-alt"></i>
+                <span>Actualiser les données</span>
+            </button>
+        </div>
+
+        <!-- Filter Sections -->
+        <div class="mb-8 space-y-6">
+            <!-- Catégories Filter -->
+            <div>
+                <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">Catégories</h3>
+                <div class="filter-section flex overflow-x-auto pb-2 gap-2" id="categoryFilters">
+                    <button class="filter-tag px-3 py-1 rounded-full bg-indigo-100 text-indigo-800 hover:bg-indigo-200 transition-colors whitespace-nowrap" data-tag="tous" data-type="category">
+                        Toutes catégories
+                    </button>
+                    <!-- Category filters will be added here by JavaScript -->
+                </div>
+            </div>
+            
+            <!-- Secteurs Filter -->
+            <div>
+                <h3 class="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-2">Secteurs</h3>
+                <div class="filter-section flex overflow-x-auto pb-2 gap-2" id="sectorFilters">
+                    <button class="filter-tag px-3 py-1 rounded-full bg-indigo-100 text-indigo-800 hover:bg-indigo-200 transition-colors whitespace-nowrap" data-tag="tous" data-type="sector">
+                        Tous secteurs
+                    </button>
+                    <!-- Sector filters will be added here by JavaScript -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Count -->
+        <div class="mb-4 text-gray-500" id="resultsCount">
+            Chargement des observatoires...
+        </div>
+
+        <!-- Cards Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="cardsContainer">
+            <!-- Cards will be inserted here by JavaScript -->
+        </div>
+
+        <!-- Loading Indicator -->
+        <div id="loadingIndicator" class="text-center py-12 hidden">
+            <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500 mx-auto mb-4"></div>
+            <p class="text-gray-600">Chargement des données...</p>
+        </div>
+
+        <!-- No Results -->
+        <div id="noResults" class="text-center py-12 hidden">
+            <i class="fas fa-search text-4xl text-gray-300 mb-4"></i>
+            <h3 class="text-xl font-medium text-gray-700">Aucun résultat trouvé</h3>
+            <p class="text-gray-500 mt-2">Essayez avec d'autres termes de recherche ou filtrez par catégorie/secteur.</p>
+        </div>
+
+        <!-- Announcements Section -->
+        <div class="mt-16 border-t pt-12">
+            <div class="max-w-4xl mx-auto bg-indigo-50 rounded-xl p-6 shadow-sm border border-indigo-100 announcement-pulse">
+                <div class="flex items-start">
+                    <div class="bg-indigo-100 p-3 rounded-lg mr-4">
+                        <i class="fas fa-bullhorn text-indigo-600 text-xl"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-2xl font-bold text-indigo-800 mb-2">Annonces</h2>
+                        <div class="prose text-gray-700">
+                            <p><strong>Mise à jour à venir avant la fin de la semaine prochaine</strong> avec tous les observatoires de la grande bibliothèque.</p>
+                            <p class="mt-2">Nous travaillons actuellement à intégrer plus de 50 observatoires supplémentaires couvrant tous les secteurs d'activité.</p>
+                            <div class="mt-4 flex items-center text-sm text-indigo-600">
+                                <i class="fas fa-clock mr-2"></i>
+                                <span>Dernière mise à jour: ${new Date().toLocaleDateString('fr-FR')}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // DOM Elements
+        const cardsContainer = document.getElementById('cardsContainer');
+        const searchInput = document.getElementById('searchInput');
+        const categoryFiltersContainer = document.getElementById('categoryFilters');
+        const sectorFiltersContainer = document.getElementById('sectorFilters');
+        const resultsCount = document.getElementById('resultsCount');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const noResults = document.getElementById('noResults');
+        const refreshBtn = document.getElementById('refreshBtn');
+
+        // State
+        let currentData = [];
+        let activeCategoryFilter = 'tous';
+        let activeSectorFilter = 'tous';
+        let currentSearch = '';
+        let uniqueCategories = new Set();
+        let uniqueSectors = new Set();
+
+        // Initialize
+        function init() {
+            loadData();
+            setupEventListeners();
+        }
+
+        // Load data from CSV
+        function loadData() {
+            showLoading();
+            
+            // Path to your CSV file
+            const csvUrl = 'observatory_plus.csv';
+            
+            Papa.parse(csvUrl, {
+                download: true,
+                header: true,
+                complete: function(results) {
+                    currentData = processData(results.data);
+                    extractUniqueFilters(currentData);
+                    renderFilters();
+                    renderCards(currentData);
+                    hideLoading();
+                    updateResultsCount(currentData.length);
+                },
+                error: function(error) {
+                    console.error("Error loading CSV:", error);
+                    hideLoading();
+                    resultsCount.textContent = "Erreur lors du chargement des données";
+                    
+                    // Fallback to sample data if CSV fails
+                    loadSampleData();
+                }
+            });
+        }
+
+        // Process CSV data into our format
+        function processData(data) {
+            return data.map(item => {
+                // Clean and standardize category and sector names
+                const category = item.Catégorie ? item.Catégorie.trim() : "Autre";
+                const sector = item.Secteur ? item.Secteur.trim() : "Tous secteurs";
+                
+                return {
+                    id: Math.floor(Math.random() * 10000), // Generate random ID if not provided
+                    nom: item.Nom || "Observatoire sans nom",
+                    description: item.Description || "Pas de description disponible",
+                    thematique: category,
+                    secteur: sector,
+                    lien: item.Lien || "#",
+                    icone: getIconForCategory(category)
+                };
+            }).filter(item => item.nom && item.nom.trim() !== ""); // Filter out empty entries
+        }
+
+        // Extract unique categories and sectors for filters
+        function extractUniqueFilters(data) {
+            uniqueCategories.clear();
+            uniqueSectors.clear();
+            
+            data.forEach(item => {
+                if (item.thematique) uniqueCategories.add(item.thematique);
+                if (item.secteur) uniqueSectors.add(item.secteur);
+            });
+            
+            // Add default "tous" options
+            uniqueCategories.add("tous");
+            uniqueSectors.add("tous");
+        }
+
+        // Render filter buttons
+        function renderFilters() {
+            // Clear existing filters (except the "tous" button)
+            categoryFiltersContainer.innerHTML = `
+                <button class="filter-tag px-3 py-1 rounded-full bg-indigo-100 text-indigo-800 hover:bg-indigo-200 transition-colors whitespace-nowrap" data-tag="tous" data-type="category">
+                    Toutes catégories
+                </button>
+            `;
+            
+            sectorFiltersContainer.innerHTML = `
+                <button class="filter-tag px-3 py-1 rounded-full bg-indigo-100 text-indigo-800 hover:bg-indigo-200 transition-colors whitespace-nowrap" data-tag="tous" data-type="sector">
+                    Tous secteurs
+                </button>
+            `;
+            
+            // Add category filters
+            Array.from(uniqueCategories)
+                .filter(cat => cat !== "tous")
+                .sort()
+                .forEach(category => {
+                    const button = document.createElement('button');
+                    button.className = 'filter-tag px-3 py-1 rounded-full bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors whitespace-nowrap';
+                    button.dataset.tag = category;
+                    button.dataset.type = 'category';
+                    button.textContent = category;
+                    categoryFiltersContainer.appendChild(button);
+                });
+            
+            // Add sector filters
+            Array.from(uniqueSectors)
+                .filter(sector => sector !== "tous")
+                .sort()
+                .forEach(sector => {
+                    const button = document.createElement('button');
+                    button.className = 'filter-tag px-3 py-1 rounded-full bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors whitespace-nowrap';
+                    button.dataset.tag = sector;
+                    button.dataset.type = 'sector';
+                    button.textContent = sector;
+                    sectorFiltersContainer.appendChild(button);
+                });
+            
+            // Set active filters
+            updateActiveFilterButtons();
+        }
+
+        // Get appropriate icon for category
+        function getIconForCategory(category) {
+            if (!category) return "chart-line";
+            
+            const lowerCat = category.toLowerCase();
+            
+            if (lowerCat.includes('métier') || lowerCat.includes('metier') || lowerCat.includes('coeur de métiers')) return 'user-tie';
+            if (lowerCat.includes('compétence') || lowerCat.includes('competence')) return 'lightbulb';
+            if (lowerCat.includes('recherche')) return 'flask';
+            if (lowerCat.includes('innovation')) return 'rocket';
+            if (lowerCat.includes('formation')) return 'graduation-cap';
+            if (lowerCat.includes('santé') || lowerCat.includes('sante')) return 'user-md';
+            if (lowerCat.includes('numérique') || lowerCat.includes('numerique')) return 'laptop-code';
+            if (lowerCat.includes('industrie')) return 'industry';
+            
+            return 'chart-line';
+        }
+
+        // Fallback to sample data if CSV fails
+        function loadSampleData() {
+            const sampleData = [
+                {
+                    "id": 1,
+                    "nom": "L'Observatoire de la Confiance Numérique",
+                    "description": "L'Observatoire de la filière de la Confiance Numérique fournit un état des lieux à date de la filière de la Confiance Numérique et mesure la dynamique du secteur chaque année.",
+                    "thematique": "Coeur de métiers",
+                    "secteur": "Numérique",
+                    "lien": "https://www.confiance-numerique.fr/lobservatoire-de-la-confiance-numerique/",
+                    "icone": "laptop-code"
+                },
+                {
+                    "id": 2,
+                    "nom": "Observatoire des Compétences Futures",
+                    "description": "Anticipe les compétences clés nécessaires pour les emplois de demain dans tous les secteurs.",
+                    "thematique": "Compétences",
+                    "secteur": "Tous secteurs",
+                    "lien": "https://example.com/competences-futures",
+                    "icone": "lightbulb"
+                },
+                {
+                    "id": 3,
+                    "nom": "Observatoire de la Recherche et Innovation",
+                    "description": "Suivi des tendances et avancées dans la recherche scientifique et technologique mondiale.",
+                    "thematique": "Recherche",
+                    "secteur": "Sciences",
+                    "lien": "https://example.com/recherche-innovation",
+                    "icone": "flask"
+                },
+                {
+                    "id": 4,
+                    "nom": "Observatoire de la Santé",
+                    "description": "Analyse des évolutions des métiers et compétences dans le secteur de la santé.",
+                    "thematique": "Métiers",
+                    "secteur": "Santé",
+                    "lien": "https://example.com/sante",
+                    "icone": "user-md"
+                },
+                {
+                    "id": 5,
+                    "nom": "Observatoire Industriel",
+                    "description": "Suivi des transformations des métiers dans l'industrie 4.0.",
+                    "thematique": "Métiers",
+                    "secteur": "Industrie",
+                    "lien": "https://example.com/industrie",
+                    "icone": "industry"
+                }
+            ];
+            
+            currentData = sampleData;
+            extractUniqueFilters(currentData);
+            renderFilters();
+            renderCards(currentData);
+            updateResultsCount(currentData.length);
+            
+            // Show warning about using sample data
+            resultsCount.textContent = `${currentData.length} observatoires de démonstration (les données réelles n'ont pas pu être chargées)`;
+        }
+
+        // Refresh data
+        function refreshData() {
+            showLoading();
+            
+            // In a real app, this would fetch the latest data from the server
+            setTimeout(() => {
+                loadData(); // Reload the data
+                
+                // Show success message
+                const originalText = refreshBtn.innerHTML;
+                refreshBtn.innerHTML = '<i class="fas fa-check"></i><span>Données actualisées</span>';
+                refreshBtn.classList.remove('bg-indigo-600');
+                refreshBtn.classList.add('bg-green-600');
+                
+                setTimeout(() => {
+                    refreshBtn.innerHTML = originalText;
+                    refreshBtn.classList.add('bg-indigo-600');
+                    refreshBtn.classList.remove('bg-green-600');
+                }, 2000);
+            }, 500);
+        }
+
+        // Render cards
+        function renderCards(data) {
+            cardsContainer.innerHTML = '';
+            
+            if (data.length === 0) {
+                noResults.classList.remove('hidden');
+                return;
+            }
+            
+            noResults.classList.add('hidden');
+            
+            data.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'card bg-white rounded-xl shadow-md overflow-hidden border border-gray-100';
+                
+                // Highlight search terms in name and description
+                const highlightedName = highlightSearchTerms(item.nom, currentSearch);
+                const highlightedDesc = highlightSearchTerms(item.description, currentSearch);
+                
+                card.innerHTML = `
+                    <div class="p-6">
+                        <div class="flex items-center mb-4">
+                            <div class="bg-indigo-100 p-3 rounded-lg mr-4">
+                                <i class="fas fa-${item.icone} text-indigo-600 text-xl"></i>
+                            </div>
+                            <h3 class="text-xl font-semibold text-gray-800">${highlightedName}</h3>
+                        </div>
+                        <p class="text-gray-600 mb-4">${highlightedDesc}</p>
+                        <div class="flex flex-wrap gap-2 mb-4">
+                            <span class="px-2 py-1 bg-indigo-50 text-indigo-800 text-xs rounded-full">${item.thematique}</span>
+                            <span class="px-2 py-1 bg-gray-100 text-gray-800 text-xs rounded-full">${item.secteur}</span>
+                        </div>
+                        <a href="${item.lien}" target="_blank" class="inline-flex items-center text-indigo-600 hover:text-indigo-800 font-medium">
+                            En savoir plus
+                            <i class="fas fa-arrow-right ml-2"></i>
+                        </a>
+                    </div>
+                `;
+                
+                cardsContainer.appendChild(card);
+            });
+        }
+
+        // Highlight search terms in text
+        function highlightSearchTerms(text, searchTerm) {
+            if (!searchTerm || !text) return text || '';
+            
+            const regex = new RegExp(searchTerm, 'gi');
+            return text.toString().replace(regex, match => `<span class="search-highlight">${match}</span>`);
+        }
+
+        // Filter data based on search and active filters
+        function filterData() {
+            let filtered = [...currentData];
+            
+            // Apply category filter
+            if (activeCategoryFilter !== 'tous') {
+                filtered = filtered.filter(item => 
+                    item.thematique.toLowerCase().includes(activeCategoryFilter.toLowerCase())
+                );
+            }
+            
+            // Apply sector filter
+            if (activeSectorFilter !== 'tous') {
+                filtered = filtered.filter(item => 
+                    item.secteur.toLowerCase().includes(activeSectorFilter.toLowerCase())
+                );
+            }
+            
+            // Apply search filter
+            if (currentSearch) {
+                const searchLower = currentSearch.toLowerCase();
+                filtered = filtered.filter(item => 
+                    (item.nom && item.nom.toLowerCase().includes(searchLower)) ||
+                    (item.description && item.description.toLowerCase().includes(searchLower)) ||
+                    (item.thematique && item.thematique.toLowerCase().includes(searchLower)) ||
+                    (item.secteur && item.secteur.toLowerCase().includes(searchLower))
+                );
+            }
+            
+            return filtered;
+        }
+
+        // Update results count
+        function updateResultsCount(count) {
+            const categoryText = activeCategoryFilter === 'tous' ? '' : ` catégorie "${activeCategoryFilter}"`;
+            const sectorText = activeSectorFilter === 'tous' ? '' : ` secteur "${activeSectorFilter}"`;
+            const searchText = currentSearch ? ` pour "${currentSearch}"` : '';
+            
+            let filterText = '';
+            if (categoryText && sectorText) {
+                filterText = ` dans ${categoryText} et ${sectorText}`;
+            } else if (categoryText || sectorText) {
+                filterText = ` dans ${categoryText || sectorText}`;
+            }
+            
+            resultsCount.textContent = `${count} observatoire${count !== 1 ? 's' : ''} trouvé${count !== 1 ? 's' : ''}${filterText}${searchText}`;
+        }
+
+        // Update active filter buttons UI
+        function updateActiveFilterButtons() {
+            // Update category filters
+            document.querySelectorAll('[data-type="category"]').forEach(button => {
+                if (button.dataset.tag === activeCategoryFilter) {
+                    button.classList.remove('bg-gray-200', 'text-gray-700');
+                    button.classList.add('bg-indigo-100', 'text-indigo-800');
+                } else {
+                    button.classList.add('bg-gray-200', 'text-gray-700');
+                    button.classList.remove('bg-indigo-100', 'text-indigo-800');
+                }
+            });
+            
+            // Update sector filters
+            document.querySelectorAll('[data-type="sector"]').forEach(button => {
+                if (button.dataset.tag === activeSectorFilter) {
+                    button.classList.remove('bg-gray-200', 'text-gray-700');
+                    button.classList.add('bg-indigo-100', 'text-indigo-800');
+                } else {
+                    button.classList.add('bg-gray-200', 'text-gray-700');
+                    button.classList.remove('bg-indigo-100', 'text-indigo-800');
+                }
+            });
+        }
+
+        // Show loading indicator
+        function showLoading() {
+            loadingIndicator.classList.remove('hidden');
+            cardsContainer.classList.add('hidden');
+            noResults.classList.add('hidden');
+        }
+
+        // Hide loading indicator
+        function hideLoading() {
+            loadingIndicator.classList.add('hidden');
+            cardsContainer.classList.remove('hidden');
+        }
+
+        // Setup event listeners
+        function setupEventListeners() {
+            // Search input
+            searchInput.addEventListener('input', (e) => {
+                currentSearch = e.target.value;
+                const filteredData = filterData();
+                renderCards(filteredData);
+                updateResultsCount(filteredData.length);
+            });
+            
+            // Category filter buttons
+            document.addEventListener('click', (e) => {
+                if (e.target.matches('[data-type="category"]')) {
+                    e.preventDefault();
+                    activeCategoryFilter = e.target.dataset.tag;
+                    updateActiveFilterButtons();
+                    
+                    const filteredData = filterData();
+                    renderCards(filteredData);
+                    updateResultsCount(filteredData.length);
+                }
+                
+                if (e.target.matches('[data-type="sector"]')) {
+                    e.preventDefault();
+                    activeSectorFilter = e.target.dataset.tag;
+                    updateActiveFilterButtons();
+                    
+                    const filteredData = filterData();
+                    renderCards(filteredData);
+                    updateResultsCount(filteredData.length);
+                }
+            });
+            
+            // Refresh button
+            refreshBtn.addEventListener('click', refreshData);
+        }
+
+        // Initialize the app
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+<p style="border-radius: 8px; text-align: center; font-size: 12px; color: #fff; margin-top: 16px;position: fixed; left: 8px; bottom: 8px; z-index: 10; background: rgba(0, 0, 0, 0.8); padding: 4px 8px;">Made with <img src="https://enzostvs-deepsite.hf.space/logo.svg" alt="DeepSite Logo" style="width: 16px; height: 16px; vertical-align: middle;display:inline-block;margin-right:3px;filter:brightness(0) invert(1);"><a href="https://enzostvs-deepsite.hf.space" style="color: #fff;text-decoration: underline;" target="_blank" >DeepSite</a> - 🧬 <a href="https://enzostvs-deepsite.hf.space?remix=BravoCartte/un-observatoire-pour-tout" style="color: #fff;text-decoration: underline;" target="_blank" >Remix</a></p></body>
+</html>
